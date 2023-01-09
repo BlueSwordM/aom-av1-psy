@@ -9,6 +9,7 @@
  * PATENTS file, you can obtain it at www.aomedia.org/license/patent.
  */
 
+#include "av1/encoder/rd.h"
 #include "av1/qmode_rc/ratectrl_qmode.h"
 
 #include <algorithm>
@@ -1062,8 +1063,13 @@ TEST_F(RateControlQModeTest, TestGetGopEncodeInfo) {
         rc.GetGopEncodeInfo(gop_list[gop_idx], tpl_gop_list[tpl_gop_idx], {},
                             firstpass_info, ref_frame_table);
     ASSERT_THAT(gop_encode_info.status(), IsOkStatus());
+
+    const int base_offset = av1_get_deltaq_offset(
+        AOM_BITS_8, rc_param_.base_q_index, gop_list[gop_idx].base_q_ratio);
+    const int base_q_index = rc_param_.base_q_index + base_offset;
+
     for (auto &frame_param : gop_encode_info->param_list) {
-      EXPECT_LE(frame_param.q_index, rc_param_.base_q_index);
+      EXPECT_LE(frame_param.q_index, base_q_index);
     }
     ref_frame_table = gop_encode_info->final_snapshot;
     for (auto &gop_frame : ref_frame_table) {

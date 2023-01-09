@@ -868,6 +868,12 @@ FirstpassInfo AnalyzeFpStats(FirstpassInfo firstpass_info) {
 StatusOr<GopStructList> AV1RateControlQMode::DetermineGopInfo(
     const FirstpassInfo &firstpass_info) {
   const int stats_size = static_cast<int>(firstpass_info.stats_list.size());
+  if (stats_size <= 0) {
+    Status status;
+    status.code = AOM_CODEC_INVALID_PARAM;
+    status.message = "The firstpass info length is insufficient.";
+    return status;
+  }
   GopStructList gop_list;
   RefFrameManager ref_frame_manager(rc_param_.ref_frame_table_size,
                                     rc_param_.max_ref_frames);
@@ -902,6 +908,33 @@ StatusOr<GopStructList> AV1RateControlQMode::DetermineGopInfo(
       global_order_idx_offset += gop.show_frame_count;
       gop_list.push_back(gop);
     }
+  }
+
+  // Determine the qp adjustment ratio for this gop.
+  double global_avg_coded_error = 0.0;
+  for (int i = 0; i < stats_size; ++i) {
+    global_avg_coded_error +=
+        log(1.0 + std::min(analyzed_fp_info.stats_list[i].coded_error,
+                           analyzed_fp_info.stats_list[i].sr_coded_error));
+  }
+  global_avg_coded_error /= static_cast<double>(stats_size);
+
+  for (auto &gop_struct : gop_list) {
+    double gop_avg_coded_error = 0.0;
+    for (int i = gop_struct.global_order_idx_offset;
+         i < gop_struct.global_order_idx_offset + gop_struct.show_frame_count;
+         ++i) {
+      gop_avg_coded_error +=
+          log(1.0 + std::min(analyzed_fp_info.stats_list[i].coded_error,
+                             analyzed_fp_info.stats_list[i].sr_coded_error));
+    }
+    gop_avg_coded_error /=
+        std::max(static_cast<double>(gop_struct.show_frame_count), 1.0);
+
+    gop_struct.base_q_ratio =
+        fabs(global_avg_coded_error - gop_avg_coded_error) < 0.001
+            ? 1.0
+            : exp((global_avg_coded_error - gop_avg_coded_error) * 2.0);
   }
   return gop_list;
 }
@@ -1674,14 +1707,17 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithNoStats(
     const GopStruct &gop_struct) {
   GopEncodeInfo gop_encode_info;
   const int frame_count = static_cast<int>(gop_struct.gop_frame_list.size());
-  for (int i = 0; i < frame_count; i++) {
+  const int base_offset = av1_get_deltaq_offset(
+      AOM_BITS_8, rc_param_.base_q_index, gop_struct.base_q_ratio);
+  const int base_q_index = rc_param_.base_q_index + base_offset;
+  for (int i = 0; i < frame_count; ++i) {
     FrameEncodeParameters param;
     const GopFrame &gop_frame = gop_struct.gop_frame_list[i];
     // Use constant QP for TPL pass encoding. Keep the functionality
     // that allows QP changes across sub-gop.
-    param.q_index = rc_param_.base_q_index;
+    param.q_index = base_q_index;
     param.rdmult = av1_compute_rd_mult_based_on_qindex(AOM_BITS_8, LF_UPDATE,
-                                                       rc_param_.base_q_index);
+                                                       base_q_index);
     // TODO(jingning): gop_frame is needed in two pass tpl later.
     (void)gop_frame;
 
@@ -1858,15 +1894,19 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithFp(
 
   GopFrame arf_frame = GopFrameInvalid();
   const int frame_count = static_cast<int>(gop_struct.gop_frame_list.size());
-  const int active_worst_quality = rc_param_.base_q_index;
-  int active_best_quality = rc_param_.base_q_index;
+
+  const int base_offset = av1_get_deltaq_offset(
+      AOM_BITS_8, rc_param_.base_q_index, gop_struct.base_q_ratio);
+  const int base_q_index = rc_param_.base_q_index + base_offset;
+  const int active_worst_quality = base_q_index;
+  int active_best_quality = base_q_index;
   for (int i = 0; i < frame_count; ++i) {
     FrameEncodeParameters param;
     const GopFrame &gop_frame = gop_struct.gop_frame_list[i];
     if (gop_frame.update_type == GopFrameType::kOverlay ||
         gop_frame.update_type == GopFrameType::kIntermediateOverlay ||
         gop_frame.update_type == GopFrameType::kRegularLeaf) {
-      param.q_index = rc_param_.base_q_index;
+      param.q_index = base_q_index;
     } else if (gop_frame.update_type == GopFrameType::kRegularKey ||
                gop_frame.update_type == GopFrameType::kRegularGolden ||
                gop_frame.update_type == GopFrameType::kRegularArf) {
@@ -1884,11 +1924,10 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithFp(
           std::max(sqrt(score), 1.0),
           gop_frame.update_type == GopFrameType::kRegularKey ? 6.0 : 4.0);
       const double qstep_ratio = 1.0 / boost;
-      param.q_index = av1_get_q_index_from_qstep_ratio(rc_param_.base_q_index,
+      param.q_index = av1_get_q_index_from_qstep_ratio(base_q_index,
                                                        qstep_ratio, AOM_BITS_8);
-      param.q_index = AdjustStaticQp(avg_correlation, score, param.q_index);
 
-      if (rc_param_.base_q_index) param.q_index = std::max(param.q_index, 1);
+      if (base_q_index) param.q_index = std::max(param.q_index, 1);
       active_best_quality = param.q_index;
 
       if (gop_frame.update_type == GopFrameType::kRegularArf) {
@@ -1924,8 +1963,6 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithTpl(
       static_cast<int>(tpl_gop_stats.frame_stats_list.size());
 
   const int stats_size = static_cast<int>(firstpass_info.stats_list.size());
-  const FirstpassInfo analyzed_fp_info =
-      AnalyzeFpStats(std::move(firstpass_info));
 
   const int this_gop_len = gop_struct.show_frame_count;
   const int next_gop_len =
@@ -1939,8 +1976,12 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithTpl(
     return status;
   }
 
-  const int active_worst_quality = rc_param_.base_q_index;
-  int active_best_quality = rc_param_.base_q_index;
+  const int base_offset = av1_get_deltaq_offset(
+      AOM_BITS_8, rc_param_.base_q_index, gop_struct.base_q_ratio);
+  const int base_q_index = rc_param_.base_q_index + base_offset;
+
+  const int active_worst_quality = base_q_index;
+  int active_best_quality = base_q_index;
 
   double base_rdcost = 1.0;  // baseline total rdcost
   double hqr_rdcost = 0;     // high quality reference total rdcost
@@ -1969,14 +2010,14 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithTpl(
   double tp_frame_importance =
       1.0 + fabs((base_rdcost - hqr_rdcost) / arf_rdcost_high);
 
-  for (int i = 0; i < frame_count; i++) {
+  for (int i = 0; i < frame_count; ++i) {
     FrameEncodeParameters param;
     const GopFrame &gop_frame = gop_struct.gop_frame_list[i];
 
     if (gop_frame.update_type == GopFrameType::kOverlay ||
         gop_frame.update_type == GopFrameType::kIntermediateOverlay ||
         gop_frame.update_type == GopFrameType::kRegularLeaf) {
-      param.q_index = rc_param_.base_q_index;
+      param.q_index = base_q_index;
     } else if (gop_frame.update_type == GopFrameType::kRegularGolden ||
                gop_frame.update_type == GopFrameType::kRegularKey ||
                gop_frame.update_type == GopFrameType::kRegularArf) {
@@ -1997,21 +2038,10 @@ StatusOr<GopEncodeInfo> AV1RateControlQMode::GetGopEncodeInfoWithTpl(
 
       // Imitate the behavior of av1_tpl_get_qstep_ratio()
       const double qstep_ratio = sqrt(1 / frame_importance);
-      param.q_index = av1_get_q_index_from_qstep_ratio(rc_param_.base_q_index,
+      param.q_index = av1_get_q_index_from_qstep_ratio(base_q_index,
                                                        qstep_ratio, AOM_BITS_8);
-      int this_index, first_index, last_index, ref_before_index,
-          ref_after_index;
-      SetUpFrameIndices(gop_frame.update_type, stats_size, this_gop_len,
-                        next_gop_len, this_index, first_index, last_index,
-                        ref_before_index, ref_after_index);
 
-      double avg_correlation = 0;
-      const double score = GetAccumulatedScore(
-          analyzed_fp_info, this_index, first_index, last_index,
-          ref_before_index, ref_after_index, avg_correlation);
-      param.q_index = AdjustStaticQp(avg_correlation, score, param.q_index);
-
-      if (rc_param_.base_q_index) param.q_index = AOMMAX(param.q_index, 1);
+      if (base_q_index) param.q_index = AOMMAX(param.q_index, 1);
       active_best_quality = param.q_index;
 
       if (rc_param_.max_distinct_q_indices_per_frame > 1) {
