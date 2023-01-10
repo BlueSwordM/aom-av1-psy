@@ -1421,12 +1421,8 @@ YV12_BUFFER_CONFIG *av1_realloc_and_scale_if_required(
     }
 #endif
     return scaled;
-  } else {
-#if CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
-    aom_invalidate_pyramid(unscaled->y_pyramid);
-#endif  // CONFIG_AV1_ENCODER && !CONFIG_REALTIME_ONLY
-    return unscaled;
   }
+  return unscaled;
 }
 
 // Calculates the scaled dimension given the original dimension and the scale

@@ -2726,9 +2726,7 @@ static int encode_with_recode_loop(AV1_COMP *cpi, size_t *size, uint8_t *dest) {
       cpi->sf.interp_sf.adaptive_interp_filter_search)
     cpi->interp_search_flags.interp_filter_search_mask =
         av1_setup_interp_filter_search_mask(cpi);
-#if !CONFIG_REALTIME_ONLY
   aom_invalidate_pyramid(cpi->source->y_pyramid);
-#endif  // !CONFIG_REALTIME_ONLY
 
   av1_setup_frame_size(cpi);
 
