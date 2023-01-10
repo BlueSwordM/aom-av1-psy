@@ -1503,13 +1503,15 @@ static std::vector<uint8_t> SetupDeltaQ(const TplFrameDepStats &frame_dep_stats,
              ++unit_col) {
           const TplUnitDepStats &unit_dep_stats =
               frame_dep_stats.unit_stats[unit_row][unit_col];
-          intra_cost += unit_dep_stats.inter_cost;
           mc_dep_cost += unit_dep_stats.propagation_cost;
 
           if (use_twopass_data) {
+            intra_cost += unit_dep_stats.inter_cost;
             const TplUnitDepStats &alt_unit_dep_stats =
                 frame_dep_stats.alt_unit_stats[unit_row][unit_col];
             mc_dep_cost -= alt_unit_dep_stats.propagation_cost;
+          } else {
+            intra_cost += unit_dep_stats.intra_cost;
           }
         }
       }
