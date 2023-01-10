@@ -2001,12 +2001,11 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
                          MAX_MB_PLANE);
   }
 
-  // Evaluate zero MV first
-  best_int_mv->as_fullmv = kZeroFullMv;
-  best_sad = cpi->ppi->fn_ptr[bsize].sdf(x->plane[0].src.buf, src_stride,
-                                         xd->plane[0].pre[0].buf, ref_stride);
-
   if (xd->bd != 8) {
+    best_int_mv->as_fullmv = kZeroFullMv;
+    best_sad = cpi->ppi->fn_ptr[bsize].sdf(x->plane[0].src.buf, src_stride,
+                                           xd->plane[0].pre[0].buf, ref_stride);
+
     if (scaled_ref_frame) {
       int i;
       for (i = 0; i < MAX_MB_PLANE; i++) xd->plane[i].pre[0] = backup_yv12[i];
@@ -2036,16 +2035,20 @@ unsigned int av1_int_pro_motion_estimation(const AV1_COMP *cpi, MACROBLOCK *x,
   FULLPEL_MV this_mv = best_int_mv->as_fullmv;
   src_buf = x->plane[0].src.buf;
   ref_buf = get_buf_from_fullmv(&xd->plane[0].pre[0], &this_mv);
-  tmp_sad =
+  best_sad =
       cpi->ppi->fn_ptr[bsize].sdf(src_buf, src_stride, ref_buf, ref_stride);
 
-  // Check if zero mv performs better.
-  if (best_sad < tmp_sad) {
-    best_int_mv->as_fullmv = kZeroFullMv;
-    this_mv = best_int_mv->as_fullmv;
-    ref_buf = xd->plane[0].pre[0].buf;
-  } else {
-    best_sad = tmp_sad;
+  // Evaluate zero MV if found MV is non-zero.
+  if (best_int_mv->as_int != 0) {
+    tmp_sad = cpi->ppi->fn_ptr[bsize].sdf(x->plane[0].src.buf, src_stride,
+                                          xd->plane[0].pre[0].buf, ref_stride);
+
+    if (tmp_sad < best_sad) {
+      best_int_mv->as_fullmv = kZeroFullMv;
+      this_mv = best_int_mv->as_fullmv;
+      ref_buf = xd->plane[0].pre[0].buf;
+      best_sad = tmp_sad;
+    }
   }
 
   {
