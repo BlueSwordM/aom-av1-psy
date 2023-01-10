@@ -128,9 +128,6 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
       av1_decoder_remove(pbi);
     }
     aom_free(frame_worker_data);
-#if CONFIG_MULTITHREAD
-    pthread_mutex_destroy(&ctx->buffer_pool->pool_mutex);
-#endif
   }
 
   if (ctx->buffer_pool) {
@@ -140,6 +137,9 @@ static aom_codec_err_t decoder_destroy(aom_codec_alg_priv_t *ctx) {
     }
     av1_free_ref_frame_buffers(ctx->buffer_pool);
     av1_free_internal_frame_buffers(&ctx->buffer_pool->int_frame_buffers);
+#if CONFIG_MULTITHREAD
+    pthread_mutex_destroy(&ctx->buffer_pool->pool_mutex);
+#endif
   }
 
   aom_free(ctx->frame_worker);
@@ -433,11 +433,18 @@ static aom_codec_err_t init_decoder(aom_codec_alg_priv_t *ctx) {
       ctx->buffer_pool->num_frame_bufs, sizeof(*ctx->buffer_pool->frame_bufs));
   if (ctx->buffer_pool->frame_bufs == NULL) {
     ctx->buffer_pool->num_frame_bufs = 0;
+    aom_free(ctx->buffer_pool);
+    ctx->buffer_pool = NULL;
     return AOM_CODEC_MEM_ERROR;
   }
 
 #if CONFIG_MULTITHREAD
   if (pthread_mutex_init(&ctx->buffer_pool->pool_mutex, NULL)) {
+    aom_free(ctx->buffer_pool->frame_bufs);
+    ctx->buffer_pool->frame_bufs = NULL;
+    ctx->buffer_pool->num_frame_bufs = 0;
+    aom_free(ctx->buffer_pool);
+    ctx->buffer_pool = NULL;
     set_error_detail(ctx, "Failed to allocate buffer pool mutex");
     return AOM_CODEC_MEM_ERROR;
   }

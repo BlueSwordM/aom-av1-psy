@@ -2524,20 +2524,25 @@ aom_codec_err_t av1_create_context_and_bufferpool(AV1_PRIMARY *ppi,
   if (buffer_pool == NULL) {
     buffer_pool = (BufferPool *)aom_calloc(1, sizeof(BufferPool));
     if (buffer_pool == NULL) return AOM_CODEC_MEM_ERROR;
-    *p_buffer_pool = buffer_pool;
     buffer_pool->num_frame_bufs =
         (oxcf->mode == ALLINTRA) ? FRAME_BUFFERS_ALLINTRA : FRAME_BUFFERS;
     buffer_pool->frame_bufs = (RefCntBuffer *)aom_calloc(
         buffer_pool->num_frame_bufs, sizeof(*buffer_pool->frame_bufs));
     if (buffer_pool->frame_bufs == NULL) {
       buffer_pool->num_frame_bufs = 0;
+      aom_free(buffer_pool);
       return AOM_CODEC_MEM_ERROR;
     }
 #if CONFIG_MULTITHREAD
     if (pthread_mutex_init(&buffer_pool->pool_mutex, NULL)) {
+      aom_free(buffer_pool->frame_bufs);
+      buffer_pool->frame_bufs = NULL;
+      buffer_pool->num_frame_bufs = 0;
+      aom_free(buffer_pool);
       return AOM_CODEC_MEM_ERROR;
     }
 #endif
+    *p_buffer_pool = buffer_pool;
   }
   *p_cpi =
       av1_create_compressor(ppi, oxcf, buffer_pool, stage, lap_lag_in_frames);
