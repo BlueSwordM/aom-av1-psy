@@ -179,6 +179,7 @@ GopStruct ConstructGop(RefFrameManager *ref_frame_manager, int show_frame_count,
   bool has_arf_frame = show_frame_count > kMinIntervalToAddArf;
 
   gop_struct.display_tracker = 0;
+  gop_struct.base_q_ratio = 1.0;
 
   GopFrame gop_frame;
   if (has_key_frame) {
