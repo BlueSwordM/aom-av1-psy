@@ -2488,6 +2488,50 @@ void av1_set_speed_features_qindex_dependent(AV1_COMP *cpi, int speed) {
       sf->lpf_sf.cdef_pick_method = CDEF_FAST_SEARCH_LVL1;
   }
 
+  // Psy CDEF quality/quantizer ceiling pruning calculation full search
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY && speed == 0){
+
+    const int qindex_thresh_cdef[2] = { 124, 96 };
+    const int qindex_thresh_cdef_l1[2] = { 104, 64 };
+    const int qindex_thresh_cdef_l2[2] = { 92, 48 };
+
+    if (cm->quant_params.base_qindex < qindex_thresh_cdef[is_720p_or_larger]){
+      //Once the quantizer/quality is low enough, prune the search range for higher speed
+      //and quality ceiling
+      sf->lpf_sf.cdef_pick_method = CDEF_FULL_SEARCH_Q1;
+    }
+
+    else if (cm->quant_params.base_qindex <= qindex_thresh_cdef_l1[is_720p_or_larger]){
+      sf->lpf_sf.cdef_pick_method = CDEF_FULL_SEARCH_Q2;
+    }
+
+    else if (cm->quant_params.base_qindex <= qindex_thresh_cdef_l2[is_720p_or_larger]){
+      sf->lpf_sf.cdef_pick_method = CDEF_FULL_SEARCH_Q3;
+    }
+      //TODO: Add in higher quality pruning levels, as they weren't tested
+  }
+
+  if (cpi->oxcf.tune_cfg.content == AOM_CONTENT_PSY && (speed >=1 && speed <=3)){
+
+    const int qindex_thresh_cdef_sf_s1_s3_l1[2] = { 104, 64 };
+    const int qindex_thresh_cdef_sf_s1_s3_l2[2] = { 92, 48 };
+
+      //You already start at Level Q2, since we're already pruning at an equivalent L1
+      sf->lpf_sf.cdef_pick_method = CDEF_FULL_SEARCH_Q2;
+
+      if (cm->quant_params.base_qindex <= qindex_thresh_cdef_sf_s1_s3_l1[is_720p_or_larger]){
+        sf->lpf_sf.cdef_pick_method = CDEF_FULL_SEARCH_Q3;
+      }
+
+      else if (cm->quant_params.base_qindex <= qindex_thresh_cdef_sf_s1_s3_l2[is_720p_or_larger]){
+        sf->lpf_sf.cdef_pick_method = CDEF_FULL_SEARCH_Q4;
+      }
+
+
+      //TODO: Add in higher quality pruning levels, as they weren't tested
+  }
+
+
   if (speed == 1) {
     // Reuse interinter wedge mask search from first search for non-boosted
     // non-internal-arf frames, except at very high quantizers.
