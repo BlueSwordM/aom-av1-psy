@@ -28,7 +28,7 @@ extern "C" {
 #define MAX_LAG_BUFFERS 128
 #define MAX_LAP_BUFFERS 128
 #define MAX_TOTAL_BUFFERS (MAX_LAG_BUFFERS + MAX_LAP_BUFFERS)
-#define LAP_LAG_IN_FRAMES 17
+#define LAP_LAG_IN_FRAMES 25
 
 struct lookahead_entry {
   YV12_BUFFER_CONFIG img;

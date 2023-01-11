@@ -1329,7 +1329,7 @@ void av1_set_mb_ssim_rdmult_scaling(AV1_COMP *cpi) {
         const double hq_level = 30 * 4;
         const double delta =
             cq_level < hq_level
-                ? 2.0 * (double)(hq_level - cq_level) / hq_level
+                ? 0.5 * (double)(hq_level - cq_level) / hq_level
                 : 10.0 * (double)(cq_level - hq_level) / (MAXQ - hq_level);
         // Curve fitting with an exponential model on user rating dataset.
         var = 39.126 * (1 - exp(-0.0009413 * var)) + 1.236 + delta;
