@@ -1028,27 +1028,18 @@ int av1_get_q_for_deltaq_objective(AV1_COMP *const cpi, ThreadData *td,
   return qindex;
 }
 
-#if !DISABLE_HDR_LUMA_DELTAQ
 // offset table defined in Table3 of T-REC-H.Sup15 document.
 static const int hdr_thres[HDR_QP_LEVELS + 1] = { 0,   301, 367, 434, 501, 567,
                                                   634, 701, 767, 834, 1024 };
 
 static const int hdr10_qp_offset[HDR_QP_LEVELS] = { 3,  2,  1,  0,  -1,
                                                     -2, -3, -4, -5, -6 };
-#endif
 
 int av1_get_q_for_hdr(AV1_COMP *const cpi, MACROBLOCK *const x,
-                      BLOCK_SIZE bsize, int mi_row, int mi_col) {
+                      BLOCK_SIZE bsize) {
   AV1_COMMON *const cm = &cpi->common;
   assert(cm->seq_params->bit_depth == AOM_BITS_10);
 
-#if DISABLE_HDR_LUMA_DELTAQ
-  (void)x;
-  (void)bsize;
-  (void)mi_row;
-  (void)mi_col;
-  return cm->quant_params.base_qindex;
-#else
   // calculate pixel average
   const int block_luma_avg = av1_log_block_avg_hbd(x, bsize);
   // adjust offset based on average of the pixel block
@@ -1068,7 +1059,6 @@ int av1_get_q_for_hdr(AV1_COMP *const cpi, MACROBLOCK *const x,
   qindex = AOMMAX(qindex, MINQ);
 
   return qindex;
-#endif
 }
 #endif  // !CONFIG_REALTIME_ONLY
 
