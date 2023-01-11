@@ -1462,6 +1462,9 @@ enum aome_enc_control_id {
    * Valid range: 0..7. The default is 0. Values 1-7 will change quantization in favour of block sharpness.
    */
   AOME_SET_QUANT_SHARPNESS = AV1E_GET_TARGET_SEQ_LEVEL_IDX + 3,
+  //Loop filter sharpness (decoding side)
+  AOME_SET_LOOPFILTER_SHARPNESS = AV1E_GET_TARGET_SEQ_LEVEL_IDX + 4,
+
   /*!\brief Codec control function to get the number of operating points. int*
    * parameter.
    */
@@ -2115,6 +2118,9 @@ AOM_CTRL_USE_TYPE(AV1E_GET_TARGET_SEQ_LEVEL_IDX, int *)
 
 AOM_CTRL_USE_TYPE(AOME_SET_DQ_MODULATE, int)
 #define AOM_CTRL_AOME_SET_DQ_MODULATE
+
+AOM_CTRL_USE_TYPE(AOME_SET_LOOPFILTER_SHARPNESS, int)
+#define AOM_CTRL_AOME_SET_LOOPFILTER_SHARPNESS
 
 AOM_CTRL_USE_TYPE(AV1E_GET_NUM_OPERATING_POINTS, int *)
 #define AOM_CTRL_AV1E_GET_NUM_OPERATING_POINTS

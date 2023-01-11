@@ -1086,6 +1086,9 @@ typedef struct AV1EncoderConfig {
   // ClybPatch -- Add a modifiable parameter for modifying deltaq-mode=1's perceptual modulation via the interface
   int dq_modulate;
 
+  //Decoding loop filter sharpness
+  int loopfilter_sharpness;
+
   // A flag to control if we enable the superblock qp sweep for a given lambda
   int sb_qp_sweep;
   /*!\endcond */

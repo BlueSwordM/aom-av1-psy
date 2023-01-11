@@ -195,6 +195,7 @@ struct av1_extracfg {
   int strict_level_conformance;
   int kf_max_pyr_height;
   int dq_modulate;
+  int loopfilter_sharpness;
   int sb_qp_sweep;
 };
 
@@ -360,6 +361,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,               // strict_level_conformance
   -1,              // kf_max_pyr_height
   1,               // dq_modulate
+  0,               // loopfilter_sharpness
   0,               // sb_qp_sweep
 };
 #else
@@ -511,6 +513,7 @@ static const struct av1_extracfg default_extra_cfg = {
   0,               // strict_level_conformance
   -1,              // kf_max_pyr_height
   1,               // dq_modulate
+  0,               // loopfilter_sharpness
   0,               // sb_qp_sweep
 };
 #endif
@@ -879,6 +882,7 @@ static aom_codec_err_t validate_config(aom_codec_alg_priv_t *ctx,
         "The value of kf-max-pyr-height should not be smaller than "
         "gf-min-pyr-height");
   }
+  RANGE_CHECK_HI(extra_cfg, loopfilter_sharpness, 7);
 
   return AOM_CODEC_OK;
 }
@@ -1470,6 +1474,8 @@ static aom_codec_err_t set_encoder_config(AV1EncoderConfig *oxcf,
   oxcf->sb_qp_sweep = extra_cfg->sb_qp_sweep;
 
   oxcf->dq_modulate = extra_cfg->dq_modulate;
+
+  oxcf->loopfilter_sharpness = extra_cfg->loopfilter_sharpness;
 
   return AOM_CODEC_OK;
 }
@@ -4044,6 +4050,11 @@ static aom_codec_err_t encoder_set_option(aom_codec_alg_priv_t *ctx,
                               err_string)) {
     ctx->cfg.tile_width_count = arg_parse_list_helper(
         &arg, ctx->cfg.tile_widths, MAX_TILE_WIDTHS, err_string);
+  
+  } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.loopfilter_sharpness,
+                              argv, err_string)) {
+    extra_cfg.loopfilter_sharpness = arg_parse_int_helper(&arg, err_string);
+
   } else if (arg_match_helper(&arg, &g_av1_codec_arg_defs.tile_height, argv,
                               err_string)) {
     ctx->cfg.tile_height_count = arg_parse_list_helper(
@@ -4093,6 +4104,13 @@ static aom_codec_err_t ctrl_set_dq_modulate(aom_codec_alg_priv_t *ctx,
                                           va_list args) {
   struct av1_extracfg extra_cfg = ctx->extra_cfg;
   extra_cfg.dq_modulate = CAST(AOME_SET_DQ_MODULATE, args);
+  return update_extra_cfg(ctx, &extra_cfg);
+}
+
+static aom_codec_err_t ctrl_set_loopfilter_sharpness(aom_codec_alg_priv_t *ctx,
+                                          va_list args) {
+  struct av1_extracfg extra_cfg = ctx->extra_cfg;
+  extra_cfg.loopfilter_sharpness = CAST(AOME_SET_LOOPFILTER_SHARPNESS, args);
   return update_extra_cfg(ctx, &extra_cfg);
 }
 
@@ -4246,6 +4264,7 @@ static aom_codec_ctrl_fn_map_t encoder_ctrl_maps[] = {
   { AV1E_SET_AUTO_INTRA_TOOLS_OFF, ctrl_set_auto_intra_tools_off },
   { AV1E_SET_RTC_EXTERNAL_RC, ctrl_set_rtc_external_rc },
   { AOME_SET_DQ_MODULATE, ctrl_set_dq_modulate },
+  { AOME_SET_LOOPFILTER_SHARPNESS, ctrl_set_loopfilter_sharpness },
 
   // Getters
   { AOME_GET_LAST_QUANTIZER, ctrl_get_quantizer },

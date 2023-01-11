@@ -692,6 +692,8 @@ const av1_codec_arg_definitions_t g_av1_codec_arg_defs = {
   .dq_modulate = ARG_DEF(NULL, "dq-modulate", 1,
                        "Changes deltaq-mode=2's perceptual modulation. Still WIP. "
                        "(0..1), default is 1 (wavelet)"),
+  .loopfilter_sharpness = ARG_DEF(NULL, "loopfilter-sharpness", 1,
+                       "Adjust sharpness for the loopfilter (decoder side), can reduce detail blur at the expense of artifacts. ((0)..7)"),
   .sb_qp_sweep =
       ARG_DEF(NULL, "sb-qp-sweep", 1,
               "When set to 1, enable the superblock level qp sweep for a "
